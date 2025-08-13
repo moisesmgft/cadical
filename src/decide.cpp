@@ -91,6 +91,10 @@ int Internal::likely_phase (int idx) { return decide_phase (idx, false); }
 void Internal::new_trail_level (int lit) {
   level++;
   control.push_back (Level (lit, trail.size ()));
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+  // Default: not a milestone. It may be toggled later where we define milestones.
+  control.back ().is_milestone = false;
+#endif
 }
 
 /*------------------------------------------------------------------------*/

@@ -270,6 +270,10 @@ struct Internal {
 
   Options opts; // run-time options
   Stats stats;  // statistics
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+  // Global milestone counter (mu_total). Guarded by compile-time flag.
+  int64_t stag_mu_total;
+#endif
 #ifndef QUIET
   Profiles profiles;         // time profiles for various functions
   bool force_phase_messages; // force 'phase (...)' messages

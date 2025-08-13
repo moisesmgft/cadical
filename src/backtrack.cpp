@@ -151,6 +151,19 @@ void Internal::backtrack (int new_level) {
     notify_assignments ();
   }
 
+  // Update milestone counter when popping decision levels.
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+  if (opts.stagnation) {
+    for (int lvl = level; lvl > new_level; --lvl) {
+      if (lvl >= 0 && (size_t) lvl < control.size ()) {
+        if (control[lvl].is_milestone) {
+          if (stag_mu_total > 0) stag_mu_total--;
+        }
+      }
+    }
+  }
+#endif
+
   control.resize (new_level + 1);
   level = new_level;
   if (tainted_literal) {

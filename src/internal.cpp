@@ -567,6 +567,10 @@ void Internal::init_search_limits () {
     else
       LOG ("starting in default non-stable phase");
     init_averages ();
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+    // Initialize milestone counter.
+    stag_mu_total = 0;
+#endif
   } else if (opts.stabilize && opts.stabilizeonly) {
     LOG ("keeping always forced stable phase");
     assert (stable);

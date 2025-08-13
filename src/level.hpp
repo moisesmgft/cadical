@@ -13,6 +13,7 @@ struct Level {
 
   int decision; // decision literal of this level
   int trail;    // trail start of this level
+  bool is_milestone; // experimental: marks milestone decision levels
 
   struct {
     int count; // how many variables seen during 'analyze'
@@ -22,6 +23,7 @@ struct Level {
   void reset () {
     seen.count = 0;
     seen.trail = INT_MAX;
+    is_milestone = false;
   }
 
   Level (int d, int t) : decision (d), trail (t) { reset (); }
