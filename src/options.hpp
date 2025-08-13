@@ -92,6 +92,7 @@ OPTION( emalevel,        1e5,  1,2e9,0,0,1, "window back-track level") \
 OPTION( emasize,         1e5,  1,2e9,0,0,1, "window learned clause size") \
 OPTION( ematrailfast,    1e2,  1,2e9,0,0,1, "window fast trail") \
 OPTION( ematrailslow,    1e5,  1,2e9,0,0,1, "window slow trail") \
+OPTION( exp_telemetry,     0,  0,  1,0,0,1, "extra experimental logs") \
 OPTION( exteagerreasons,   1,  0,  1,0,0,1, "eagerly ask for all reasons (0: only when needed)") \
 OPTION( exteagerrecalc,    1,  0,  1,0,0,1, "after eagerly asking for reasons recalculate all levels (0: trust the external tool)") \
 OPTION( externallrat,      0,  0,  1,0,0,1, "external lrat") \
@@ -113,6 +114,10 @@ LOGOPT( log,               0,  0,  1,0,0,0, "enable logging") \
 LOGOPT( logsort,           0,  0,  1,0,0,0, "sort logged clauses") \
 OPTION( lrat,              0,  0,  1,0,0,1, "use LRAT proof format") \
 OPTION( lucky,             1,  0,  1,0,0,1, "search for lucky phases") \
+OPTION( mab_eps,          50,  0,1e3,0,0,1, "epsilon-greedy epsilon per mille") \
+OPTION( mab_horizon,    5000,  1,1e7,0,0,1, "MAB episode size (conflicts)") \
+OPTION( mab_mode,          0,  0,  2,0,0,1, "0=off,1=params,2=policy") \
+OPTION( mab_ucb_c,      1414,  0,1e4,0,0,1, "UCB1 exploration constant per mille") \
 OPTION( minimize,          1,  0,  1,0,0,1, "minimize learned clauses") \
 OPTION( minimizedepth,   1e3,  0,1e3,0,0,1, "minimization depth") \
 OPTION( otfs,              1,  0,  1,0,0,1, "on-the-fly self subsumption") \
@@ -161,6 +166,12 @@ OPTION( stabilizefactor, 200,101,2e9,0,0,1, "phase increase in percent") \
 OPTION( stabilizeint,    1e3,  1,2e9,0,0,1, "stabilizing interval") \
 OPTION( stabilizemaxint, 2e9,  1,2e9,0,0,1, "maximum stabilizing phase") \
 OPTION( stabilizeonly,     0,  0,  1,0,0,1, "only stabilizing phases") \
+OPTION( stag_alpha,      200,  0,1e3,0,0,1, "EMA alpha per mille (0,1]") \
+OPTION( stag_ema,          1,  0,  1,0,0,1, "use EMA instead of SMA") \
+OPTION( stag_eps,        100,  0,1e3,0,0,1, "xi epsilon per mille") \
+OPTION( stag_pc,         200,  1,1e6,0,0,1, "xi short window size (conflicts)") \
+OPTION( stag_pl,        2000,  1,1e7,0,0,1, "xi long window size (conflicts)") \
+OPTION( stagnation,        0,  0,  1,0,0,1, "enable stagnation-based restarts in stable phase") \
 OPTION( stats,             0,  0,  1,0,0,1, "print all statistics at the end of the run") \
 OPTION( subsume,           1,  0,  1,0,1,1, "enable clause subsumption") \
 OPTION( subsumebinlim,   1e4,  0,2e9,1,0,1, "watch list length limit") \
