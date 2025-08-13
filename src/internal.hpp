@@ -260,6 +260,23 @@ struct Internal {
   Last last;                // statistics at last occurrence
   Inc inc;                  // increments on limits
 
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+  // Stagnation (xi) measurement state. All updated only when opts.stagnation.
+  struct {
+    // Moving averages of dmu for short(pc) and long(pl) windows.
+    double dmu_sma_pc, dmu_sma_pl;
+    double dmu_ema_pc, dmu_ema_pl;
+    // EMA smoothing factors (derived from options per event if needed).
+    double alpha;
+    // Next conflict count to check xi (scheduled window).
+    int64_t next_check_conflict;
+    // Whether currently checking with short window frequency.
+    bool xi_short_active;
+    // Last mu_total snapshot to compute dmu per conflict.
+    int64_t last_mu_total;
+  } stag;
+#endif
+
   Proof *proof;             // abstraction layer between solver and tracers
   LratBuilder *lratbuilder; // special proof tracer
   vector<Tracer *>

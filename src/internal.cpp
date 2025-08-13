@@ -570,6 +570,15 @@ void Internal::init_search_limits () {
 #ifdef CADICAL_EXPERIMENTAL_STAGNATION
     // Initialize milestone counter.
     stag_mu_total = 0;
+    // Initialize stagnation tracking state.
+    stag.dmu_sma_pc = 0.0;
+    stag.dmu_sma_pl = 0.0;
+    stag.dmu_ema_pc = 0.0;
+    stag.dmu_ema_pl = 0.0;
+    stag.alpha = (opts.stag_alpha > 0 ? (opts.stag_alpha * 1e-3) : 0.0);
+    stag.next_check_conflict = stats.conflicts + opts.stag_pl;
+    stag.xi_short_active = false;
+    stag.last_mu_total = stag_mu_total;
 #endif
   } else if (opts.stabilize && opts.stabilizeonly) {
     LOG ("keeping always forced stable phase");

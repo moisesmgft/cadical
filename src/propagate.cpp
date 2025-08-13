@@ -468,6 +468,29 @@ bool Internal::propagate () {
       if (stable)
         stats.stabconflicts++;
       stats.conflicts++;
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+      if (opts.stagnation) {
+        // Compute dmu = mu_after - mu_before based on global counter.
+        const int64_t mu_before = stag.last_mu_total;
+        const int64_t mu_after = stag_mu_total;
+        const double dmu = (double) (mu_after - mu_before);
+        stag.last_mu_total = mu_after;
+
+        // Update SMA or EMA depending on opts.stag_ema. For SMA we apply a simple
+        // incremental average with window count approximated by the window size
+        // as per-event smoothing (cheap and acceptable for our signal).
+        if (opts.stag_ema) {
+          const double alpha = (opts.stag_alpha > 0 ? (opts.stag_alpha * 1e-3) : 0.0);
+          stag.dmu_ema_pc = alpha * dmu + (1.0 - alpha) * stag.dmu_ema_pc;
+          stag.dmu_ema_pl = alpha * dmu + (1.0 - alpha) * stag.dmu_ema_pl;
+        } else {
+          const double kpc = 1.0 / (double) max (1, opts.stag_pc);
+          const double kpl = 1.0 / (double) max (1, opts.stag_pl);
+          stag.dmu_sma_pc += kpc * (dmu - stag.dmu_sma_pc);
+          stag.dmu_sma_pl += kpl * (dmu - stag.dmu_sma_pl);
+        }
+      }
+#endif
 
       LOG (conflict, "conflict");
 
