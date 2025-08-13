@@ -579,6 +579,7 @@ void Internal::init_search_limits () {
     stag.next_check_conflict = stats.conflicts + opts.stag_pl;
     stag.xi_short_active = false;
     stag.last_mu_total = stag_mu_total;
+    stag.xi_restarts = 0;
 #endif
 
 #ifdef CADICAL_MAB

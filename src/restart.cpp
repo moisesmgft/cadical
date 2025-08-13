@@ -134,6 +134,10 @@ bool Internal::restarting () {
       if (stagnating) {
         stag.next_check_conflict = stats.conflicts + opts.stag_pc;
         stag.xi_short_active = true;
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+        if (opts.exp_telemetry) MSG ("[stag] xi_long=1 eps=%.4f long=%.4f short=%.4f @%" PRId64,
+                                     eps, long_sig, short_sig, stats.conflicts);
+#endif
         return true; // trigger restart now
       } else {
         stag.next_check_conflict = stats.conflicts + opts.stag_pl;
@@ -143,6 +147,10 @@ bool Internal::restarting () {
       const bool stagnating_short = absd (short_sig) < eps;
       if (stagnating_short) {
         stag.next_check_conflict = stats.conflicts + opts.stag_pc;
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+        if (opts.exp_telemetry) MSG ("[stag] xi_short=1 eps=%.4f long=%.4f short=%.4f @%" PRId64,
+                                     eps, long_sig, short_sig, stats.conflicts);
+#endif
         return true; // trigger restart now
       } else {
         stag.next_check_conflict = stats.conflicts + opts.stag_pl;
@@ -208,6 +216,12 @@ int Internal::reuse_trail () {
 void Internal::restart () {
   START (restart);
   stats.restarts++;
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+  if (opts.stagnation && stable) {
+    stag.xi_restarts++;
+    if (opts.exp_telemetry) MSG ("[stag] xi_restart total=%" PRId64, stag.xi_restarts);
+  }
+#endif
   stats.restartlevels += level;
   if (stable)
     stats.restartstable++;

@@ -274,6 +274,8 @@ struct Internal {
     bool xi_short_active;
     // Last mu_total snapshot to compute dmu per conflict.
     int64_t last_mu_total;
+    // Telemetry counters.
+    int64_t xi_restarts;
   } stag;
 #endif
 

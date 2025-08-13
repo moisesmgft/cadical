@@ -489,6 +489,13 @@ bool Internal::propagate () {
           stag.dmu_sma_pc += kpc * (dmu - stag.dmu_sma_pc);
           stag.dmu_sma_pl += kpl * (dmu - stag.dmu_sma_pl);
         }
+
+        if (opts.exp_telemetry) {
+          const double long_sig = opts.stag_ema ? stag.dmu_ema_pl : stag.dmu_sma_pl;
+          const double short_sig = opts.stag_ema ? stag.dmu_ema_pc : stag.dmu_sma_pc;
+          MSG ("[stag] c=%" PRId64 " mu=%" PRId64 " dmu=%.4f long=%.4f short=%.4f",
+               stats.conflicts, stag_mu_total, dmu, long_sig, short_sig);
+        }
       }
 #endif
 
