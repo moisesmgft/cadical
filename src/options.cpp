@@ -61,16 +61,21 @@ bool Options::parse_long_option (const char *arg, string &name, int &val) {
   const size_t offset = has_no_prefix ? 5 : 2;
   name = arg + offset;
   const size_t pos = name.find_first_of ('=');
-  if (pos != string::npos)
-    name[pos] = 0;
-  if (!Options::has (name.c_str ()))
+  // Normalize option key by mapping '-' to '_' to accept both styles.
+  string key = (pos == string::npos) ? name : name.substr (0, pos);
+  for (size_t i = 0; i < key.size (); i++)
+    if (key[i] == '-')
+      key[i] = '_';
+  if (!Options::has (key.c_str ()))
     return false;
-  if (pos == string::npos)
+  if (pos == string::npos) {
     val = !has_no_prefix;
-  else {
-    const char *val_str = name.c_str () + pos + 1;
+    name = key; // return normalized name
+  } else {
+    const char *val_str = arg + offset + pos + 1;
     if (!parse_int_str (val_str, val))
       return false;
+    name = key; // return normalized name
   }
   return true;
 }
