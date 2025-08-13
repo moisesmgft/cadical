@@ -76,8 +76,50 @@ bool Internal::restarting () {
     return reluctant;
 
 #ifdef CADICAL_EXPERIMENTAL_STAGNATION
+#ifdef CADICAL_MAB
+  // If MAB is enabled in stable phase, select policy arm at episode boundaries.
+  if (stable && opts.mab_mode > 0) {
+    const bool new_episode = (stats.conflicts - mab.episode_start) >= mab.episode_horizon;
+    if (new_episode || mab.current_arm < 0) {
+      // Define arms: 0 = luby, 1 = xi
+      mab.num_arms = 2;
+      if ((int) mab.q.size () != mab.num_arms) {
+        mab.q.assign (mab.num_arms, 0.0);
+        mab.n.assign (mab.num_arms, 0);
+      }
+      int chosen = 0;
+      if (opts.mab_mode == 2) {
+        // Policy selection
+        if (mab.n[0] == 0 || mab.n[1] == 0) {
+          chosen = (mab.n[0] == 0 ? 0 : 1);
+        } else {
+          const double rnd = random () / (double) RAND_MAX;
+          if (rnd < mab.eps) {
+            chosen = (rand () & 1);
+          } else {
+            const int t = mab.n[0] + mab.n[1];
+            const double u0 = mab.q[0] + mab.ucb_c * sqrt (log (t) / mab.n[0]);
+            const double u1 = mab.q[1] + mab.ucb_c * sqrt (log (t) / mab.n[1]);
+            chosen = (u1 > u0);
+          }
+        }
+      } else {
+        chosen = 1; // params mode not implemented; prefer xi when enabled
+      }
+      mab.current_arm = chosen;
+      mab.episode_start = stats.conflicts;
+      mab.restarts_start = stats.restarts;
+    }
+  }
+#endif
   // In stable phase and stagnation option enabled: use xi-based restarts.
-  if (stable && opts.stagnation) {
+  const bool mab_prefers_xi =
+#ifdef CADICAL_MAB
+      (stable && opts.mab_mode == 2 && mab.current_arm == 1);
+#else
+      false;
+#endif
+  if (stable && (opts.stagnation || mab_prefers_xi)) {
     if (stats.conflicts < stag.next_check_conflict)
       return false;
 

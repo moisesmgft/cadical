@@ -580,6 +580,19 @@ void Internal::init_search_limits () {
     stag.xi_short_active = false;
     stag.last_mu_total = stag_mu_total;
 #endif
+
+#ifdef CADICAL_MAB
+    // Initialize MAB controller (stable phase episodes only).
+    mab.mode = opts.mab_mode;
+    mab.num_arms = 0;
+    mab.q.clear (); mab.n.clear ();
+    mab.current_arm = -1;
+    mab.episode_start = stats.conflicts;
+    mab.episode_horizon = opts.mab_horizon;
+    mab.ucb_c = opts.mab_ucb_c * 1e-3;
+    mab.eps = opts.mab_eps * 1e-3;
+    mab.restarts_start = stats.restarts;
+#endif
   } else if (opts.stabilize && opts.stabilizeonly) {
     LOG ("keeping always forced stable phase");
     assert (stable);

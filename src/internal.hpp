@@ -277,6 +277,22 @@ struct Internal {
   } stag;
 #endif
 
+#ifdef CADICAL_MAB
+  // Lightweight Multi-Armed Bandit controller (stable phase only).
+  struct {
+    int mode;                    // copy of opts.mab_mode at init
+    int num_arms;                // number of policy arms
+    vector<double> q;            // value estimates per arm
+    vector<int> n;               // pulls per arm
+    int current_arm;             // currently selected arm
+    int64_t episode_start;       // conflict counter at episode start
+    int64_t episode_horizon;     // episode duration in conflicts
+    double ucb_c;                // UCB exploration constant
+    double eps;                  // epsilon for epsilon-greedy
+    int64_t restarts_start;      // restarts at episode start
+  } mab;
+#endif
+
   Proof *proof;             // abstraction layer between solver and tracers
   LratBuilder *lratbuilder; // special proof tracer
   vector<Tracer *>
