@@ -49,6 +49,13 @@ bool Internal::stabilizing () {
       START (stable);
     else
       START (unstable);
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+    if (stable && opts.stagnation) {
+      // Schedule xi checks: start with long window when entering stable.
+      stag.next_check_conflict = stats.conflicts + opts.stag_pl;
+      stag.xi_short_active = false;
+    }
+#endif
   }
   return stable;
 }
@@ -67,6 +74,44 @@ bool Internal::restarting () {
     return false;
   if (stabilizing ())
     return reluctant;
+
+#ifdef CADICAL_EXPERIMENTAL_STAGNATION
+  // In stable phase and stagnation option enabled: use xi-based restarts.
+  if (stable && opts.stagnation) {
+    if (stats.conflicts < stag.next_check_conflict)
+      return false;
+
+    const double eps = (opts.stag_eps * 1e-3);
+    const double long_sig = opts.stag_ema ? stag.dmu_ema_pl : stag.dmu_sma_pl;
+    const double short_sig = opts.stag_ema ? stag.dmu_ema_pc : stag.dmu_sma_pc;
+
+    auto absd = [](double x) { return x < 0 ? -x : x; };
+
+    if (!stag.xi_short_active) {
+      const bool stagnating = absd (long_sig) < eps;
+      if (stagnating) {
+        stag.next_check_conflict = stats.conflicts + opts.stag_pc;
+        stag.xi_short_active = true;
+        return true; // trigger restart now
+      } else {
+        stag.next_check_conflict = stats.conflicts + opts.stag_pl;
+        return false;
+      }
+    } else {
+      const bool stagnating_short = absd (short_sig) < eps;
+      if (stagnating_short) {
+        stag.next_check_conflict = stats.conflicts + opts.stag_pc;
+        return true; // trigger restart now
+      } else {
+        stag.next_check_conflict = stats.conflicts + opts.stag_pl;
+        stag.xi_short_active = false;
+        return false;
+      }
+    }
+  }
+#endif
+
+  // Default Glucose-style restart decision
   if (stats.conflicts <= lim.restart)
     return false;
   double f = averages.current.glue.fast;
