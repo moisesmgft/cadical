@@ -1209,6 +1209,11 @@ void Internal::analyze () {
   conflict = 0;
 
   lrat_chain.clear ();
+
+#ifdef CADICAL_EXP_STAGNATION
+  update_stagnation (); // Update stagnation metrics after conflict.
+#endif
+
   STOP (analyze);
 
   if (driving_clause && opts.eagersubsume)

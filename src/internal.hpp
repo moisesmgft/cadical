@@ -1235,6 +1235,14 @@ struct Internal {
   void init_preprocessing_limits ();
   void init_search_limits ();
 
+  // Experimental stagnation detection.
+  //
+#ifdef CADICAL_EXP_STAGNATION
+  void init_stagnation ();
+  void update_stagnation ();
+  bool stag_stagnating ();
+#endif
+
   // The computed averages are local to the 'stable' and 'unstable' phase.
   // Their main use is to be reported in 'report', except for the 'glue'
   // averages, which are used to schedule (prohibit actually) restarts

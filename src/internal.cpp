@@ -22,21 +22,19 @@ Internal::Internal ()
       probe_reason (0), propagated (0), propagated2 (0), propergated (0),
       best_assigned (0), target_assigned (0), no_conflict_until (0),
       unsat_constraint (false), marked_failed (true), num_assigned (0),
+#ifdef CADICAL_EXP_STAGNATION
+      stag_mu (0.0), stag_prev_mu (0.0), stag_delta (0.0),
+      stag_recent_ema (0.0), stag_long_ema (0.0), stag_recent_head (0),
+      stag_long_head (0), stag_recent_sum (0.0), stag_long_sum (0.0),
+      stag_conflicts_since_restart (0),
+#endif
       proof (0), lratbuilder (0), opts (this),
 #ifndef QUIET
       profiles (this), force_phase_messages (false),
 #endif
       arena (this), prefix ("c "), internal (this), external (0),
       termination_forced (false), vars (this->max_var),
-      lits (this->max_var)
-#ifdef CADICAL_EXP_STAGNATION
-      ,
-      stag_mu (0.0), stag_prev_mu (0.0), stag_delta (0.0),
-      stag_recent_ema (0.0), stag_long_ema (0.0), stag_recent_head (0),
-      stag_long_head (0), stag_recent_sum (0.0), stag_long_sum (0.0),
-      stag_conflicts_since_restart (0)
-#endif
-{
+      lits (this->max_var) {
   control.push_back (Level (0, 0));
 
   // The 'dummy_binary' is used in 'try_to_subsume_clause' to fake a real
@@ -876,8 +874,12 @@ int Internal::solve (bool preprocess_only) {
     res = restore_clauses ();
   if (!res) {
     init_preprocessing_limits ();
-    if (!preprocess_only)
+    if (!preprocess_only) {
       init_search_limits ();
+#ifdef CADICAL_EXP_STAGNATION
+      init_stagnation ();
+#endif
+    }
   }
   if (!res && !level)
     res = preprocess ();
@@ -1152,5 +1154,124 @@ bool Internal::traverse_clauses (ClauseIterator &it) {
   }
   return true;
 }
+
+/*------------------------------------------------------------------------*/
+
+#ifdef CADICAL_EXP_STAGNATION
+
+// Initialize stagnation detection ring buffers.
+//
+void Internal::init_stagnation () {
+  if (!opts.stagnation)
+    return;
+
+  LOG ("initializing stagnation detection");
+
+  stag_mu = stag_prev_mu = stag_delta = 0.0;
+  stag_conflicts_since_restart = 0;
+
+  if (opts.stag_ema) {
+    // Using EMA (exponential moving average).
+    stag_recent_ema = stag_long_ema = 0.0;
+    LOG ("stagnation using EMA with alpha=%.3f", opts.stag_alpha);
+  } else {
+    // Using ring buffers.
+    const int pc = opts.stag_pc;
+    const int pl = opts.stag_pl;
+    stag_recent_rb.resize (pc, 0.0);
+    stag_long_rb.resize (pl, 0.0);
+    stag_recent_head = stag_long_head = 0;
+    stag_recent_sum = stag_long_sum = 0.0;
+    LOG ("stagnation using ring buffers pc=%d pl=%d", pc, pl);
+  }
+
+  // Metric type.
+  if (opts.stag_metric == 0)
+    LOG ("stagnation metric: ratio (propagations/decisions)");
+  else
+    LOG ("stagnation metric: sum (decisions+conflicts)");
+}
+
+// Update stagnation metrics after conflict.
+//
+void Internal::update_stagnation () {
+  if (!opts.stagnation)
+    return;
+
+  // Compute milestone (progress indicator).
+  if (opts.stag_metric == 0) {
+    // Ratio: propagations / max(1, decisions)
+    stag_mu = (double) stats.propagations.search /
+              (double) std::max<uint64_t> (1, stats.decisions);
+  } else {
+    // Sum: decisions + conflicts
+    stag_mu = (double) (stats.decisions + stats.conflicts);
+  }
+
+  stag_delta = stag_mu - stag_prev_mu;
+  stag_prev_mu = stag_mu;
+
+  if (opts.stag_ema) {
+    // Update EMAs.
+    const double a = opts.stag_alpha;
+    stag_recent_ema = (1.0 - a) * stag_recent_ema + a * stag_delta;
+    stag_long_ema = (1.0 - a) * stag_long_ema + a * stag_delta;
+  } else {
+    // Update ring buffers in O(1).
+    const int pc = opts.stag_pc;
+    const int pl = opts.stag_pl;
+
+    // Update recent window.
+    stag_recent_sum -= stag_recent_rb[stag_recent_head];
+    stag_recent_rb[stag_recent_head] = stag_delta;
+    stag_recent_sum += stag_delta;
+    stag_recent_head = (stag_recent_head + 1) % pc;
+
+    // Update long window.
+    stag_long_sum -= stag_long_rb[stag_long_head];
+    stag_long_rb[stag_long_head] = stag_delta;
+    stag_long_sum += stag_delta;
+    stag_long_head = (stag_long_head + 1) % pl;
+  }
+
+  ++stag_conflicts_since_restart;
+}
+
+// Check if search is stagnating.
+//
+bool Internal::stag_stagnating () {
+  if (!opts.stagnation)
+    return false;
+
+  const double tiny = 1e-12;
+  const double eps = opts.stag_eps;
+
+  double s_recent;
+  if (opts.stag_ema) {
+    s_recent = fabs (stag_recent_ema);
+  } else {
+    const int pc = opts.stag_pc;
+    s_recent = fabs (stag_recent_sum / std::max (1, pc));
+  }
+
+  if (opts.stag_pl > 0) {
+    // Two-window comparison.
+    double s_long;
+    if (opts.stag_ema) {
+      s_long = fabs (stag_long_ema);
+    } else {
+      const int pl = opts.stag_pl;
+      s_long = fabs (stag_long_sum / std::max (1, pl));
+    }
+    return s_recent < eps * (s_long + tiny);
+  } else {
+    // Single-window threshold.
+    return s_recent < eps;
+  }
+}
+
+#endif // CADICAL_EXP_STAGNATION
+
+/*------------------------------------------------------------------------*/
 
 } // namespace CaDiCaL
