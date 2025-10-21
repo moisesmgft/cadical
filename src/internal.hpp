@@ -269,6 +269,9 @@ struct Internal {
   int stag_recent_head, stag_long_head;
   double stag_recent_sum, stag_long_sum;
   uint64_t stag_conflicts_since_restart;
+  enum class StagMode { LongFirst, ShortFollowup };
+  StagMode stag_mode;
+  int stag_short_grace;
 #endif
 
 #ifdef CADICAL_EXP_MAB
@@ -1241,6 +1244,8 @@ struct Internal {
   void init_stagnation ();
   void update_stagnation ();
   bool stag_stagnating ();
+  bool stag_should_restart (); // Two-window controller.
+  void stag_reset_after_restart ();
 #endif
 
   // The computed averages are local to the 'stable' and 'unstable' phase.

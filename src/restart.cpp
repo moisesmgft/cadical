@@ -65,8 +65,14 @@ bool Internal::restarting () {
     return false;
   if ((size_t) level < assumptions.size () + 2)
     return false;
-  if (stabilizing ())
+  if (stabilizing ()) {
+#ifdef CADICAL_EXP_STAGNATION
+    // Use stagnation policy in stable phase if enabled.
+    if (opts.stagnation)
+      return stag_should_restart ();
+#endif
     return reluctant;
+  }
   if (stats.conflicts <= lim.restart)
     return false;
   double f = averages.current.glue.fast;
@@ -129,6 +135,10 @@ void Internal::restart () {
 
   lim.restart = stats.conflicts + opts.restartint;
   LOG ("new restart limit at %" PRId64 " conflicts", lim.restart);
+
+#ifdef CADICAL_EXP_STAGNATION
+  stag_reset_after_restart ();
+#endif
 
   report ('R', 2);
   STOP (restart);

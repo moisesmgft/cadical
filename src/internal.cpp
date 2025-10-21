@@ -26,7 +26,8 @@ Internal::Internal ()
       stag_mu (0.0), stag_prev_mu (0.0), stag_delta (0.0),
       stag_recent_ema (0.0), stag_long_ema (0.0), stag_recent_head (0),
       stag_long_head (0), stag_recent_sum (0.0), stag_long_sum (0.0),
-      stag_conflicts_since_restart (0),
+      stag_conflicts_since_restart (0), stag_mode (StagMode::LongFirst),
+      stag_short_grace (0),
 #endif
       proof (0), lratbuilder (0), opts (this),
 #ifndef QUIET
@@ -1169,6 +1170,8 @@ void Internal::init_stagnation () {
 
   stag_mu = stag_prev_mu = stag_delta = 0.0;
   stag_conflicts_since_restart = 0;
+  stag_mode = StagMode::LongFirst;
+  stag_short_grace = 0;
 
   if (opts.stag_ema) {
     // Using EMA (exponential moving average).
@@ -1268,6 +1271,51 @@ bool Internal::stag_stagnating () {
     // Single-window threshold.
     return s_recent < eps;
   }
+}
+
+// Two-window restart controller.
+//
+bool Internal::stag_should_restart () {
+  if (!opts.stagnation)
+    return false;
+
+  if (stag_mode == StagMode::LongFirst) {
+    // Long-window sentinel: check if stagnating and enough conflicts passed.
+    const int min_conflicts = std::max (1, opts.stag_pc / 2);
+    if (stag_stagnating () && stag_conflicts_since_restart >= min_conflicts) {
+      LOG ("stagnation long-window trigger at %" PRIu64 " conflicts",
+           stag_conflicts_since_restart);
+      stag_mode = StagMode::ShortFollowup;
+      stag_short_grace = std::max (1, opts.stag_pc);
+      return true;
+    }
+  } else {
+    // Short follow-up checks.
+    if (stag_short_grace > 0) {
+      --stag_short_grace;
+      if (stag_stagnating ()) {
+        LOG ("stagnation short-window trigger, grace=%d",
+             stag_short_grace);
+        stag_short_grace = std::max (1, opts.stag_pc); // Reset grace.
+        return true;
+      }
+      if (stag_short_grace == 0) {
+        LOG ("stagnation grace period expired, back to long-window mode");
+        stag_mode = StagMode::LongFirst;
+      }
+    }
+  }
+
+  return false;
+}
+
+// Reset stagnation counter after restart.
+//
+void Internal::stag_reset_after_restart () {
+  if (!opts.stagnation)
+    return;
+  stag_conflicts_since_restart = 0;
+  LOG ("reset stagnation conflict counter");
 }
 
 #endif // CADICAL_EXP_STAGNATION
