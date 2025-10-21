@@ -461,6 +461,10 @@ bool Internal::propagate () {
     //
     stats.propagations.search += propagated - before;
 
+#if defined(CADICAL_EXP_MAB) || defined(CADICAL_EXP_TELEMETRY)
+    interval.propagations += propagated - before;
+#endif
+
     if (!conflict)
       no_conflict_until = propagated;
     else {
@@ -468,6 +472,10 @@ bool Internal::propagate () {
       if (stable)
         stats.stabconflicts++;
       stats.conflicts++;
+
+#if defined(CADICAL_EXP_MAB) || defined(CADICAL_EXP_TELEMETRY)
+      ++interval.conflicts;
+#endif
 
       LOG (conflict, "conflict");
 

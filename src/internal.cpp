@@ -880,6 +880,9 @@ int Internal::solve (bool preprocess_only) {
 #ifdef CADICAL_EXP_STAGNATION
       init_stagnation ();
 #endif
+#ifdef CADICAL_EXP_MAB
+      init_mab ();
+#endif
     }
   }
   if (!res && !level)
@@ -1319,6 +1322,139 @@ void Internal::stag_reset_after_restart () {
 }
 
 #endif // CADICAL_EXP_STAGNATION
+
+/*------------------------------------------------------------------------*/
+
+#ifdef CADICAL_EXP_MAB
+
+// Initialize MAB state.
+//
+void Internal::init_mab () {
+  if (opts.mab_mode == 0)
+    return;
+
+  LOG ("initializing MAB selector mode=%d phase=%d", opts.mab_mode,
+       opts.mab_phase);
+
+  mab.current = RestartArm::Luby;
+  mab.intervals = 0;
+  mab.warmup_left = opts.mab_eps;
+  for (int i = 0; i < 2; ++i) {
+    mab.arms[i].pulls = 0;
+    mab.arms[i].sum_reward = 0.0;
+  }
+
+  mab_reset_interval ();
+
+  if (opts.mab_eps > 0)
+    LOG ("MAB warm-up for %d intervals (epsilon-greedy)", opts.mab_eps);
+  LOG ("MAB UCB1 exploration constant C=%.3f", opts.mab_ucb_c);
+  LOG ("MAB interval horizon: %d conflicts", opts.mab_horizon);
+}
+
+// UCB1 arm selection.
+//
+Internal::RestartArm Internal::mab_select_next_ucb1 () {
+  // Warm-up: alternate between arms.
+  if (mab.warmup_left > 0) {
+    --mab.warmup_left;
+    RestartArm arm = (mab.intervals & 1) ? RestartArm::Stagnation
+                                         : RestartArm::Luby;
+    LOG ("MAB warm-up interval %" PRIu64 " arm=%s", mab.intervals,
+         arm == RestartArm::Luby ? "Luby" : "Stagnation");
+    return arm;
+  }
+
+  // UCB1 formula: pick arm with highest (mean + exploration bonus).
+  const double C = opts.mab_ucb_c;
+  const uint64_t t = std::max<uint64_t> (1, mab.intervals);
+
+  double best_ucb = -1e300;
+  RestartArm best_arm = RestartArm::Luby;
+
+  for (int a = 0; a < 2; ++a) {
+    const ArmStats &S = mab.arms[a];
+    double mean = S.pulls > 0 ? (S.sum_reward / S.pulls) : 0.0;
+    double bonus = S.pulls > 0 ? C * std::sqrt (std::log (t) / S.pulls) : 1e9;
+    double ucb = mean + bonus;
+
+    LOG ("MAB arm %d: pulls=%" PRIu64 " mean=%.4f bonus=%.4f ucb=%.4f", a,
+         S.pulls, mean, bonus, ucb);
+
+    if (ucb > best_ucb) {
+      best_ucb = ucb;
+      best_arm = static_cast<RestartArm> (a);
+    }
+  }
+
+  LOG ("MAB selected arm=%s ucb=%.4f",
+       best_arm == RestartArm::Luby ? "Luby" : "Stagnation", best_ucb);
+  return best_arm;
+}
+
+// Compute reward for current interval.
+//
+double Internal::mab_compute_reward () {
+  // Reward = propagations / max(1, decisions) - efficiency metric.
+  const uint64_t denom = std::max<uint64_t> (1, interval.decisions);
+  double reward = (double) interval.propagations / (double) denom;
+
+  LOG ("MAB reward: props=%" PRIu64 " decs=%" PRIu64 " reward=%.4f",
+       interval.propagations, interval.decisions, reward);
+
+  return reward;
+}
+
+// Update arm statistics.
+//
+void Internal::mab_update_arm (RestartArm arm, double reward) {
+  ArmStats &S = mab.arms[static_cast<int> (arm)];
+  ++S.pulls;
+  S.sum_reward += reward;
+
+  LOG ("MAB updated arm %s: pulls=%" PRIu64 " total_reward=%.4f",
+       arm == RestartArm::Luby ? "Luby" : "Stagnation", S.pulls,
+       S.sum_reward);
+}
+
+// End current interval: compute reward, update MAB, select next arm.
+//
+void Internal::mab_end_interval () {
+  if (opts.mab_mode == 0)
+    return;
+
+  const double reward = mab_compute_reward ();
+  mab_update_arm (mab.current, reward);
+
+  ++mab.intervals;
+
+  // Select next arm based on mode.
+  if (opts.mab_mode == 1) {
+    // UCB1.
+    mab.current = mab_select_next_ucb1 ();
+  } else if (opts.mab_mode == 2) {
+    // Thompson Sampling (stub for now, keep current arm).
+    LOG ("MAB mode 2 (Thompson Sampling) not yet implemented, using Luby");
+    mab.current = RestartArm::Luby;
+  }
+
+  LOG ("MAB interval %" PRIu64 " ended, next arm=%s", mab.intervals,
+       mab.current == RestartArm::Luby ? "Luby" : "Stagnation");
+
+  mab_reset_interval ();
+}
+
+// Reset interval statistics.
+//
+void Internal::mab_reset_interval () {
+  interval.conflicts = 0;
+  interval.decisions = 0;
+  interval.propagations = 0;
+  interval.mean_lbd = 0.0;
+  interval.lbd_count = 0;
+}
+
+#endif // CADICAL_EXP_MAB
 
 /*------------------------------------------------------------------------*/
 

@@ -290,12 +290,15 @@ struct Internal {
   } mab;
 #endif
 
-#ifdef CADICAL_EXP_TELEMETRY
+// Interval statistics (shared by MAB and telemetry).
+#if defined(CADICAL_EXP_MAB) || defined(CADICAL_EXP_TELEMETRY)
   struct IntervalStats {
     uint64_t conflicts, decisions, propagations;
     double mean_lbd;
+    uint64_t lbd_count; // For computing mean LBD.
     IntervalStats ()
-        : conflicts (0), decisions (0), propagations (0), mean_lbd (0.0) {}
+        : conflicts (0), decisions (0), propagations (0), mean_lbd (0.0),
+          lbd_count (0) {}
   } interval;
 #endif
 
@@ -1246,6 +1249,17 @@ struct Internal {
   bool stag_stagnating ();
   bool stag_should_restart (); // Two-window controller.
   void stag_reset_after_restart ();
+#endif
+
+  // Experimental MAB (multi-armed bandit) selector.
+  //
+#ifdef CADICAL_EXP_MAB
+  void init_mab ();
+  RestartArm mab_select_next_ucb1 ();
+  double mab_compute_reward ();
+  void mab_update_arm (RestartArm arm, double reward);
+  void mab_end_interval ();
+  void mab_reset_interval ();
 #endif
 
   // The computed averages are local to the 'stable' and 'unstable' phase.

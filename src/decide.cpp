@@ -236,6 +236,9 @@ int Internal::decide () {
       START (decide);
     } else {
       stats.decisions++;
+#if defined(CADICAL_EXP_MAB) || defined(CADICAL_EXP_TELEMETRY)
+      ++interval.decisions;
+#endif
       if (!decision) {
         int idx = next_decision_variable ();
         const bool target = (opts.target > 1 || (stable && opts.target));
