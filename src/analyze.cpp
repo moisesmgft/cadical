@@ -1125,6 +1125,10 @@ void Internal::analyze () {
   LOG (clause, "1st UIP size %d and glue %d clause", size, glue);
   UPDATE_AVERAGE (averages.current.glue.fast, glue);
   UPDATE_AVERAGE (averages.current.glue.slow, glue);
+#if defined(CADICAL_EXP_MAB) || defined(CADICAL_EXP_TELEMETRY)
+  interval.mean_lbd += glue;
+  ++interval.lbd_count;
+#endif
   stats.learned.literals += size;
   stats.learned.clauses++;
   assert (glue < size);

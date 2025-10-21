@@ -748,6 +748,7 @@ struct Internal {
   //
   bool stabilizing ();
   bool restarting ();
+  bool should_restart_stable (); // Stable-phase restart decision (MAB/Stagnation/Luby).
   int reuse_trail ();
   void restart ();
 
@@ -1260,6 +1261,13 @@ struct Internal {
   void mab_update_arm (RestartArm arm, double reward);
   void mab_end_interval ();
   void mab_reset_interval ();
+#endif
+
+  // Experimental telemetry (interval-only logging).
+  //
+#ifdef CADICAL_EXP_TELEMETRY
+  void telemetry_print_header ();
+  void telemetry_print_interval ();
 #endif
 
   // The computed averages are local to the 'stable' and 'unstable' phase.

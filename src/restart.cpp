@@ -60,19 +60,57 @@ bool Internal::stabilizing () {
 // restart conflict interval has passed and the fast moving average is above
 // a certain margin over the slow moving average then we restart.
 
+// Stable-phase restart decision: MAB, Stagnation, or Luby.
+//
+bool Internal::should_restart_stable () {
+#ifdef CADICAL_EXP_MAB
+  // MAB mode: choose policy based on current arm.
+  if (opts.mab_mode > 0 && opts.mab_phase == 0) { // mab_phase=0 is "stable"
+    switch (mab.current) {
+    case RestartArm::Luby:
+      LOG ("MAB arm Luby");
+      return reluctant;
+#ifdef CADICAL_EXP_STAGNATION
+    case RestartArm::Stagnation:
+      LOG ("MAB arm Stagnation");
+      return stag_should_restart ();
+#else
+    case RestartArm::Stagnation:
+      // Stagnation not compiled, fall back to Luby.
+      LOG ("MAB arm Stagnation (fallback to Luby: not compiled)");
+      return reluctant;
+#endif
+    }
+  }
+#endif
+
+  // No MAB: use stagnation if enabled, else Luby.
+#ifdef CADICAL_EXP_STAGNATION
+  if (opts.stagnation)
+    return stag_should_restart ();
+#endif
+  return reluctant;
+}
+
 bool Internal::restarting () {
   if (!opts.restart)
     return false;
   if ((size_t) level < assumptions.size () + 2)
     return false;
-  if (stabilizing ()) {
-#ifdef CADICAL_EXP_STAGNATION
-    // Use stagnation policy in stable phase if enabled.
-    if (opts.stagnation)
-      return stag_should_restart ();
-#endif
-    return reluctant;
+
+  // Check interval horizon for MAB.
+#ifdef CADICAL_EXP_MAB
+  if (opts.mab_mode > 0 && stable &&
+      interval.conflicts >= (uint64_t) opts.mab_horizon) {
+    LOG ("MAB interval horizon reached: %" PRIu64 " conflicts",
+         interval.conflicts);
+    mab_end_interval ();
   }
+#endif
+
+  if (stabilizing ())
+    return should_restart_stable ();
+
   if (stats.conflicts <= lim.restart)
     return false;
   double f = averages.current.glue.fast;
@@ -138,6 +176,14 @@ void Internal::restart () {
 
 #ifdef CADICAL_EXP_STAGNATION
   stag_reset_after_restart ();
+#endif
+
+  // End MAB interval on restart in stable phase.
+#ifdef CADICAL_EXP_MAB
+  if (opts.mab_mode > 0 && stable && opts.mab_phase == 0) {
+    LOG ("MAB ending interval on stable-phase restart");
+    mab_end_interval ();
+  }
 #endif
 
   report ('R', 2);

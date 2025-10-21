@@ -883,6 +883,9 @@ int Internal::solve (bool preprocess_only) {
 #ifdef CADICAL_EXP_MAB
       init_mab ();
 #endif
+#ifdef CADICAL_EXP_TELEMETRY
+      telemetry_print_header ();
+#endif
     }
   }
   if (!res && !level)
@@ -1441,6 +1444,10 @@ void Internal::mab_end_interval () {
   LOG ("MAB interval %" PRIu64 " ended, next arm=%s", mab.intervals,
        mab.current == RestartArm::Luby ? "Luby" : "Stagnation");
 
+#ifdef CADICAL_EXP_TELEMETRY
+  telemetry_print_interval ();
+#endif
+
   mab_reset_interval ();
 }
 
@@ -1455,6 +1462,104 @@ void Internal::mab_reset_interval () {
 }
 
 #endif // CADICAL_EXP_MAB
+
+/*------------------------------------------------------------------------*/
+
+#ifdef CADICAL_EXP_TELEMETRY
+
+// Print telemetry CSV header (once).
+//
+void Internal::telemetry_print_header () {
+  if (!opts.exp_telemetry)
+    return;
+
+  printf ("c [telemetry] "
+          "interval,phase,arm,conflicts,decisions,propagations,"
+          "props_per_dec,mean_lbd");
+
+#ifdef CADICAL_EXP_STAGNATION
+  printf (",stag_recent,stag_long");
+#endif
+
+#ifdef CADICAL_EXP_MAB
+  printf (",reward");
+#endif
+
+  printf ("\n");
+  fflush (stdout);
+}
+
+// Print interval telemetry (exactly one line per interval).
+//
+void Internal::telemetry_print_interval () {
+  if (!opts.exp_telemetry)
+    return;
+
+  // Compute metrics.
+  const uint64_t denom = std::max<uint64_t> (1, interval.decisions);
+  const double props_per_dec =
+      (double) interval.propagations / (double) denom;
+  const double mean_lbd =
+      interval.lbd_count > 0
+          ? interval.mean_lbd / (double) interval.lbd_count
+          : 0.0;
+
+  // Phase name.
+  const char *phase = stable ? "stable" : "unstable";
+
+  // Arm name (if MAB compiled).
+#ifdef CADICAL_EXP_MAB
+  const char *arm = "none";
+  if (opts.mab_mode > 0) {
+    arm = (mab.current == RestartArm::Luby) ? "luby" : "stagnation";
+  }
+#else
+  const char *arm = "luby";
+#endif
+
+  // Base metrics (always present).
+  printf ("c [telemetry] %" PRIu64 ",%s,%s,%" PRIu64 ",%" PRIu64 ",%" PRIu64
+          ",%.4f,%.2f",
+#ifdef CADICAL_EXP_MAB
+          mab.intervals,
+#else
+          (uint64_t) 0,
+#endif
+          phase, arm, interval.conflicts, interval.decisions,
+          interval.propagations, props_per_dec, mean_lbd);
+
+  // Stagnation metrics (if compiled).
+#ifdef CADICAL_EXP_STAGNATION
+  double stag_recent = 0.0, stag_long = 0.0;
+  if (opts.stagnation) {
+    if (opts.stag_ema) {
+      stag_recent = fabs (stag_recent_ema);
+      stag_long = fabs (stag_long_ema);
+    } else {
+      const int pc = std::max (1, opts.stag_pc);
+      const int pl = std::max (1, opts.stag_pl);
+      stag_recent = fabs (stag_recent_sum / pc);
+      stag_long = fabs (stag_long_sum / pl);
+    }
+  }
+  printf (",%.4f,%.4f", stag_recent, stag_long);
+#endif
+
+  // Reward (if MAB compiled).
+#ifdef CADICAL_EXP_MAB
+  if (opts.mab_mode > 0) {
+    const double reward = mab_compute_reward ();
+    printf (",%.4f", reward);
+  } else {
+    printf (",0.0");
+  }
+#endif
+
+  printf ("\n");
+  fflush (stdout);
+}
+
+#endif // CADICAL_EXP_TELEMETRY
 
 /*------------------------------------------------------------------------*/
 
