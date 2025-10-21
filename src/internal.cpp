@@ -28,7 +28,15 @@ Internal::Internal ()
 #endif
       arena (this), prefix ("c "), internal (this), external (0),
       termination_forced (false), vars (this->max_var),
-      lits (this->max_var) {
+      lits (this->max_var)
+#ifdef CADICAL_EXP_STAGNATION
+      ,
+      stag_mu (0.0), stag_prev_mu (0.0), stag_delta (0.0),
+      stag_recent_ema (0.0), stag_long_ema (0.0), stag_recent_head (0),
+      stag_long_head (0), stag_recent_sum (0.0), stag_long_sum (0.0),
+      stag_conflicts_since_restart (0)
+#endif
+{
   control.push_back (Level (0, 0));
 
   // The 'dummy_binary' is used in 'try_to_subsume_clause' to fake a real
@@ -843,6 +851,23 @@ int Internal::solve (bool preprocess_only) {
     LOG ("internal solving in preprocessing only mode");
   else
     LOG ("internal solving in full mode");
+
+  // Print experimental feature banners (once per solver instance).
+  //
+  static bool exp_banners_printed = false;
+  if (!exp_banners_printed) {
+    exp_banners_printed = true;
+#ifdef CADICAL_EXP_STAGNATION
+    MSG ("stagnation compiled-in");
+#endif
+#ifdef CADICAL_EXP_MAB
+    MSG ("MAB compiled-in");
+#endif
+#ifdef CADICAL_EXP_TELEMETRY
+    MSG ("telemetry compiled-in");
+#endif
+  }
+
   init_report_limits ();
   int res = already_solved ();
   if (!res && preprocess_only && level)

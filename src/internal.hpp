@@ -260,6 +260,42 @@ struct Internal {
   Last last;                // statistics at last occurrence
   Inc inc;                  // increments on limits
 
+  // Experimental features (compile-time gated).
+  //
+#ifdef CADICAL_EXP_STAGNATION
+  double stag_mu, stag_prev_mu, stag_delta;
+  double stag_recent_ema, stag_long_ema;
+  vector<double> stag_recent_rb, stag_long_rb;
+  int stag_recent_head, stag_long_head;
+  double stag_recent_sum, stag_long_sum;
+  uint64_t stag_conflicts_since_restart;
+#endif
+
+#ifdef CADICAL_EXP_MAB
+  enum class RestartArm { Luby = 0, Stagnation = 1 };
+  struct ArmStats {
+    uint64_t pulls;
+    double sum_reward;
+    ArmStats () : pulls (0), sum_reward (0.0) {}
+  };
+  struct MabState {
+    RestartArm current;
+    ArmStats arms[2];
+    uint64_t intervals;
+    uint64_t warmup_left;
+    MabState () : current (RestartArm::Luby), intervals (0), warmup_left (0) {}
+  } mab;
+#endif
+
+#ifdef CADICAL_EXP_TELEMETRY
+  struct IntervalStats {
+    uint64_t conflicts, decisions, propagations;
+    double mean_lbd;
+    IntervalStats ()
+        : conflicts (0), decisions (0), propagations (0), mean_lbd (0.0) {}
+  } interval;
+#endif
+
   Proof *proof;             // abstraction layer between solver and tracers
   LratBuilder *lratbuilder; // special proof tracer
   vector<Tracer *>

@@ -501,11 +501,16 @@ bool Solver::set_long_option (const char *arg) {
   if (arg[0] != '-' || arg[1] != '-')
     res = false;
   else {
-    int val;
-    string name;
-    res = Options::parse_long_option (arg, name, val);
-    if (res)
-      set (name.c_str (), val);
+    // Try experimental options first (they handle doubles/enums internally).
+    res = internal->opts.parse_experimental_long_option (arg);
+    if (!res) {
+      // Fall back to regular options.
+      int val;
+      string name;
+      res = Options::parse_long_option (arg, name, val);
+      if (res)
+        set (name.c_str (), val);
+    }
   }
   LOG_API_CALL_END ("set", arg, res);
   return res;

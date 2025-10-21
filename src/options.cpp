@@ -148,6 +148,30 @@ Options::Options (Internal *s) : internal (s) {
   initialize_from_environment (N, #N, L, H);
   OPTIONS
 #undef OPTION
+
+  // Initialize experimental options (with defaults).
+  //
+#ifdef CADICAL_EXP_STAGNATION
+  stagnation = 0;
+  stag_metric = 0;    // 0=ratio (default), 1=sum
+  stag_pc = 200;
+  stag_pl = 2000;
+  stag_eps = 0.05;
+  stag_ema = 0;       // 0=ring buffers (default), 1=EMA
+  stag_alpha = 0.05;
+#endif
+
+#ifdef CADICAL_EXP_MAB
+  mab_mode = 0;       // 0=off (default), 1=UCB1, 2=TS
+  mab_phase = 0;      // 0=stable (default), 1=unstable, 2=both
+  mab_horizon = 10000;
+  mab_ucb_c = 1.414;
+  mab_eps = 0;
+#endif
+
+#ifdef CADICAL_EXP_TELEMETRY
+  exp_telemetry = 0;
+#endif
 }
 
 /*------------------------------------------------------------------------*/
@@ -177,11 +201,183 @@ void Options::set (Option *o, int new_val) {
 // Explicit option value setting.
 
 bool Options::set (const char *name, int val) {
+  // Handle experimental options (not in static table).
+  //
+#ifdef CADICAL_EXP_STAGNATION
+  if (!strcmp (name, "stagnation")) {
+    stagnation = val;
+    return true;
+  }
+  if (!strcmp (name, "stag-metric")) {
+    stag_metric = val;
+    return true;
+  }
+  if (!strcmp (name, "stag-pc")) {
+    stag_pc = val;
+    return true;
+  }
+  if (!strcmp (name, "stag-pl")) {
+    stag_pl = val;
+    return true;
+  }
+  if (!strcmp (name, "stag-ema")) {
+    stag_ema = val;
+    return true;
+  }
+  // Note: stag_eps and stag_alpha are doubles, handled specially in
+  // parse_long_option via direct assignment.
+#endif
+
+#ifdef CADICAL_EXP_MAB
+  if (!strcmp (name, "mab-mode")) {
+    mab_mode = val;
+    return true;
+  }
+  if (!strcmp (name, "mab-phase")) {
+    mab_phase = val;
+    return true;
+  }
+  if (!strcmp (name, "mab-horizon")) {
+    mab_horizon = val;
+    return true;
+  }
+  if (!strcmp (name, "mab-eps")) {
+    mab_eps = val;
+    return true;
+  }
+#endif
+
+#ifdef CADICAL_EXP_TELEMETRY
+  if (!strcmp (name, "exp-telemetry")) {
+    exp_telemetry = val;
+    return true;
+  }
+#endif
+
+  // Regular options in table.
+  //
   Option *o = has (name);
   if (!o)
     return false;
   set (o, val);
   return true;
+}
+
+// Parse and set experimental option (handles doubles).
+//
+bool Options::parse_experimental_long_option (const char *arg) {
+  if (arg[0] != '-' || arg[1] != '-')
+    return false;
+  const bool has_no_prefix =
+      (arg[2] == 'n' && arg[3] == 'o' && arg[4] == '-');
+  const size_t offset = has_no_prefix ? 5 : 2;
+  string name = arg + offset;
+  const size_t pos = name.find_first_of ('=');
+  if (pos != string::npos)
+    name[pos] = 0;
+
+  const char *n = name.c_str ();
+  const char *val_str = (pos != string::npos) ? (name.c_str () + pos + 1) : nullptr;
+
+  // Check and set stagnation options.
+  //
+#ifdef CADICAL_EXP_STAGNATION
+  if (!strcmp (n, "stagnation")) {
+    stagnation = (pos == string::npos) ? !has_no_prefix : atoi (val_str);
+    return true;
+  }
+  if (!strcmp (n, "stag-metric")) {
+    if (!val_str)
+      return false;
+    if (!strcmp (val_str, "ratio"))
+      stag_metric = 0;
+    else if (!strcmp (val_str, "sum"))
+      stag_metric = 1;
+    else
+      return false;
+    return true;
+  }
+  if (!strcmp (n, "stag-pc")) {
+    stag_pc = val_str ? atoi (val_str) : !has_no_prefix;
+    return true;
+  }
+  if (!strcmp (n, "stag-pl")) {
+    stag_pl = val_str ? atoi (val_str) : !has_no_prefix;
+    return true;
+  }
+  if (!strcmp (n, "stag-eps")) {
+    if (!val_str)
+      return false;
+    stag_eps = strtod (val_str, nullptr);
+    return true;
+  }
+  if (!strcmp (n, "stag-ema")) {
+    stag_ema = (pos == string::npos) ? !has_no_prefix : atoi (val_str);
+    return true;
+  }
+  if (!strcmp (n, "stag-alpha")) {
+    if (!val_str)
+      return false;
+    stag_alpha = strtod (val_str, nullptr);
+    return true;
+  }
+#else
+  if (!strcmp (n, "stagnation") || !strncmp (n, "stag-", 5))
+    FATAL ("'%s' requires CADICAL_EXP_STAGNATION build", arg);
+#endif
+
+  // Check and set MAB options.
+  //
+#ifdef CADICAL_EXP_MAB
+  if (!strcmp (n, "mab-mode")) {
+    mab_mode = val_str ? atoi (val_str) : !has_no_prefix;
+    return true;
+  }
+  if (!strcmp (n, "mab-phase")) {
+    if (!val_str)
+      return false;
+    if (!strcmp (val_str, "stable"))
+      mab_phase = 0;
+    else if (!strcmp (val_str, "unstable"))
+      mab_phase = 1;
+    else if (!strcmp (val_str, "both"))
+      mab_phase = 2;
+    else
+      return false;
+    return true;
+  }
+  if (!strcmp (n, "mab-horizon")) {
+    mab_horizon = val_str ? atoi (val_str) : !has_no_prefix;
+    return true;
+  }
+  if (!strcmp (n, "mab-ucb-c")) {
+    if (!val_str)
+      return false;
+    mab_ucb_c = strtod (val_str, nullptr);
+    return true;
+  }
+  if (!strcmp (n, "mab-eps")) {
+    mab_eps = val_str ? atoi (val_str) : !has_no_prefix;
+    return true;
+  }
+#else
+  if (!strncmp (n, "mab-", 4))
+    FATAL ("'%s' requires CADICAL_EXP_MAB build", arg);
+#endif
+
+  // Check and set telemetry options.
+  //
+#ifdef CADICAL_EXP_TELEMETRY
+  if (!strcmp (n, "exp-telemetry")) {
+    exp_telemetry = (pos == string::npos) ? !has_no_prefix : atoi (val_str);
+    return true;
+  }
+#else
+  if (!strcmp (n, "exp-telemetry"))
+    FATAL ("'%s' requires CADICAL_EXP_TELEMETRY build", arg);
+#endif
+
+  return false; // Not an experimental option.
 }
 
 int Options::get (const char *name) {

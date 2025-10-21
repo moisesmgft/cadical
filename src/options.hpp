@@ -298,6 +298,30 @@ public:
   OPTIONS
 #undef OPTION
 
+  // Experimental options (not in main OPTIONS table).
+  //
+#ifdef CADICAL_EXP_STAGNATION
+  int stagnation;       // enable stagnation restart policy (0=off, 1=on)
+  int stag_metric;      // stagnation metric (0=ratio, 1=sum)
+  int stag_pc;          // short-window size for stagnation detection
+  int stag_pl;          // long-window size for stagnation detection
+  double stag_eps;      // stagnation threshold epsilon
+  int stag_ema;         // use EMA instead of ring buffers (0=ring, 1=EMA)
+  double stag_alpha;    // EMA alpha coefficient (when stag_ema=1)
+#endif
+
+#ifdef CADICAL_EXP_MAB
+  int mab_mode;         // MAB selector mode (0=off, 1=UCB1, 2=TS)
+  int mab_phase;        // MAB phase scope (0=stable, 1=unstable, 2=both)
+  int mab_horizon;      // MAB interval horizon (conflicts)
+  double mab_ucb_c;     // UCB1 exploration constant
+  int mab_eps;          // MAB warm-up episodes (epsilon-greedy)
+#endif
+
+#ifdef CADICAL_EXP_TELEMETRY
+  int exp_telemetry;    // enable experimental telemetry logging (0=off, 1=on)
+#endif
+
   // It would be more elegant to use an anonymous 'struct' of the actual
   // option values overlayed with an 'int values[number_of_options]' array
   // but that is not proper ISO C++ and produces a warning.  Instead we use
@@ -322,6 +346,9 @@ public:
 
   bool set (const char *name, int); // Explicit version.
   int get (const char *name);       // Get current value.
+
+  // Parse and set experimental options (non-static, can handle doubles).
+  bool parse_experimental_long_option (const char *arg);
 
   void print ();        // Print current values in command line form
   static void usage (); // Print usage message for all options.
