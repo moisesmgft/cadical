@@ -419,6 +419,98 @@ void Options::print () {
   }
   OPTIONS
 #undef OPTION
+
+  // Print experimental options that differ from defaults.
+#ifdef CADICAL_EXP_STAGNATION
+  if (stagnation != 0) {
+    snprintf (buffer, sizeof buffer, "--stagnation=%d", stagnation);
+    MSG ("  %s%-30s%s (different from default '0')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+  if (stag_metric != 0) {
+    snprintf (buffer, sizeof buffer, "--stag-metric=%s",
+              stag_metric == 0 ? "ratio" : "sum");
+    MSG ("  %s%-30s%s (different from default 'ratio')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+  if (stag_pc != 200) {
+    snprintf (buffer, sizeof buffer, "--stag-pc=%d", stag_pc);
+    MSG ("  %s%-30s%s (different from default '200')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+  if (stag_pl != 2000) {
+    snprintf (buffer, sizeof buffer, "--stag-pl=%d", stag_pl);
+    MSG ("  %s%-30s%s (different from default '2000')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+  if (stag_eps != 0.05) {
+    snprintf (buffer, sizeof buffer, "--stag-eps=%.3f", stag_eps);
+    MSG ("  %s%-30s%s (different from default '0.05')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+  if (stag_ema != 0) {
+    snprintf (buffer, sizeof buffer, "--stag-ema=%d", stag_ema);
+    MSG ("  %s%-30s%s (different from default '0')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+  if (stag_alpha != 0.05) {
+    snprintf (buffer, sizeof buffer, "--stag-alpha=%.3f", stag_alpha);
+    MSG ("  %s%-30s%s (different from default '0.05')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+#endif
+
+#ifdef CADICAL_EXP_MAB
+  if (mab_mode != 0) {
+    snprintf (buffer, sizeof buffer, "--mab-mode=%d", mab_mode);
+    MSG ("  %s%-30s%s (different from default '0')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+  if (mab_phase != 0) {
+    const char *phase_str = mab_phase == 1 ? "unstable" :
+                            mab_phase == 2 ? "both" : "stable";
+    snprintf (buffer, sizeof buffer, "--mab-phase=%s", phase_str);
+    MSG ("  %s%-30s%s (different from default 'stable')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+  if (mab_horizon != 10000) {
+    snprintf (buffer, sizeof buffer, "--mab-horizon=%d", mab_horizon);
+    MSG ("  %s%-30s%s (different from default '10000')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+  if (mab_ucb_c != 1.414) {
+    snprintf (buffer, sizeof buffer, "--mab-ucb-c=%.3f", mab_ucb_c);
+    MSG ("  %s%-30s%s (different from default '1.414')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+  if (mab_eps != 0) {
+    snprintf (buffer, sizeof buffer, "--mab-eps=%d", mab_eps);
+    MSG ("  %s%-30s%s (different from default '0')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+#endif
+
+#ifdef CADICAL_EXP_TELEMETRY
+  if (exp_telemetry != 0) {
+    snprintf (buffer, sizeof buffer, "--exp-telemetry=%d", exp_telemetry);
+    MSG ("  %s%-30s%s (different from default '0')",
+         tout.bright_yellow_code (), buffer, tout.normal_code ());
+    different++;
+  }
+#endif
+
   if (!different)
     MSG ("all options are set to their default value");
 }
