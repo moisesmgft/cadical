@@ -185,19 +185,42 @@ else
   solver_args=()
 fi
 
-mab_mode="${MAB_MODE:-2}"
-mab_horizon="${MAB_HORIZON:-10000}"
-mab_ucb_c="${MAB_UCB_C:-1.414}"
-mab_eps="${MAB_EPS:-50}"
+# Check if user already provided MAB/stagnation options
+has_mab_opts=0
+has_stag_opt=0
+for arg in "${solver_args[@]}"; do
+  case "$arg" in
+    --mab-mode=*|--mab-horizon=*|--mab-ucb-c=*|--mab-eps=*)
+      has_mab_opts=1
+      ;;
+    --stagnation=*)
+      has_stag_opt=1
+      ;;
+  esac
+done
 
 declare -a default_opts
-default_opts=(
-  "--stagnation=1"
-  "--mab-mode=$mab_mode"
-  "--mab-horizon=$mab_horizon"
-  "--mab-ucb-c=$mab_ucb_c"
-  "--mab-eps=$mab_eps"
-)
+default_opts=()
+
+# Only add stagnation if not already provided
+if [ "$has_stag_opt" -eq 0 ]; then
+  default_opts+=("--stagnation=1")
+fi
+
+# Only add MAB defaults if user didn't provide MAB options
+if [ "$has_mab_opts" -eq 0 ]; then
+  mab_mode="${MAB_MODE:-2}"
+  mab_horizon="${MAB_HORIZON:-10000}"
+  mab_ucb_c="${MAB_UCB_C:-1.414}"
+  mab_eps="${MAB_EPS:-50}"
+
+  default_opts+=(
+    "--mab-mode=$mab_mode"
+    "--mab-horizon=$mab_horizon"
+    "--mab-ucb-c=$mab_ucb_c"
+    "--mab-eps=$mab_eps"
+  )
+fi
 
 if [ "${MAB_TELEMETRY:-0}" = "1" ]; then
   default_opts+=("--exp-telemetry=1")
