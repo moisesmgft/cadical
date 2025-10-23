@@ -102,12 +102,19 @@ for entry in "${GRID[@]}"; do
   label="${entry%%[[:space:]]*}"
   args="${entry#*[[:space:]]}"
   echo; echo ">>> Rodando grade: $label"
-  "$batch_runner" \
+
+  # Continue even if some instances fail/timeout in this batch
+  if "$batch_runner" \
     --log-suffix "$label-seed$SEED" \
     --jobs "$JOBS" \
     --time-limit "$TIME_LIMIT" \
     "$SUBSET_DIR" \
     -- "${TEL_ARGS[@]}" "${STAG_ARGS[@]}" ${args} "${SEED_ARG[@]}"
+  then
+    echo "[grid] $label concluído com sucesso"
+  else
+    echo "[grid] AVISO: $label teve falhas/timeouts, mas continuando próxima grade..." >&2
+  fi
 done
 
 echo; echo "[grid] Concluído. Logs em: $SUBSET_DIR/logs-<suffix>/"
