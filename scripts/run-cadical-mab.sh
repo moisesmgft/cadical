@@ -27,7 +27,7 @@ Options:
 The script rebuilds CaDiCaL with CADICAL_EXP_STAGNATION,
 CADICAL_EXP_MAB, and CADICAL_EXP_TELEMETRY enabled, then runs the solver
 with defaults:
-  --stagnation=1 --mab-mode=${MAB_MODE:-2}
+  --stagnation=1 --mab-mode=${MAB_MODE:-1}
   --mab-horizon=${MAB_HORIZON:-10000}
   --mab-ucb-c=${MAB_UCB_C:-1.414} --mab-eps=${MAB_EPS:-50}
 
@@ -209,7 +209,7 @@ fi
 
 # Only add MAB defaults if user didn't provide MAB options
 if [ "$has_mab_opts" -eq 0 ]; then
-  mab_mode="${MAB_MODE:-2}"
+  mab_mode="${MAB_MODE:-1}"
   mab_horizon="${MAB_HORIZON:-10000}"
   mab_ucb_c="${MAB_UCB_C:-1.414}"
   mab_eps="${MAB_EPS:-50}"

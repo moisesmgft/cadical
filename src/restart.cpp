@@ -178,14 +178,6 @@ void Internal::restart () {
   stag_reset_after_restart ();
 #endif
 
-  // End MAB interval on restart in stable phase.
-#ifdef CADICAL_EXP_MAB
-  if (opts.mab_mode > 0 && stable && opts.mab_phase == 0) {
-    LOG ("MAB ending interval on stable-phase restart");
-    mab_end_interval ();
-  }
-#endif
-
   report ('R', 2);
   STOP (restart);
 }
